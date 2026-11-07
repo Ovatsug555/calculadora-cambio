@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora de Divisas para Caja</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom scrollbars */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background-color: rgba(156, 163, 175, 0.5);
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 dark:bg-slate-900 dark:text-slate-100 min-h-screen transition-colors duration-200">
+    
+    <div id="app" class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+        
+        <!-- Header -->
+        <header class="flex justify-between items-center mb-6 bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
+            <div class="flex items-center gap-3">
+                <div class="p-2.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-xl">
+                    <i data-lucide="calculator" class="w-7 h-7"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold tracking-tight">Caja Divisas</h1>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Banco Nación (Auto-calculado /100 BRL)</p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <!-- Sync status indicator -->
+                <button id="btn-sync" onclick="fetchRates()" class="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 transition-colors">
+                    <i data-lucide="refresh-cw" id="sync-icon" class="w-3.5 h-3.5"></i>
+                    <span id="sync-text">Actualizar</span>
+                </button>
+                <!-- Dark Mode Toggle -->
+                <button id="btn-theme" onclick="toggleTheme()" class="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 transition-colors text-slate-600 dark:text-slate-300">
+                    <i data-lucide="moon" id="theme-icon" class="w-5 h-5"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Rates Cards -->
+        <div class="grid grid-cols-2 gap-4 mb-6">
+            <!-- USD Rate Card -->
+            <div id="card-usd" class="bg-white dark:bg-slate-800 p-4 rounded-2xl border-2 border-emerald-500 dark:border-emerald-500 shadow-sm relative transition-all">
+                <div class="flex justify-between items-start mb-1">
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Dólar (USD)</span>
+                    <select id="type-usd" onchange="calculate()" class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 font-semibold focus:outline-none cursor-pointer">
+                        <option value="compra">Compra (Recomendado)</option>
+                        <option value="venta">Venta</option>
+                    </select>
+                </div>
+                <div class="flex items-baseline gap-1">
+                    <span class="text-xs text-slate-500 dark:text-slate-400">$</span>
+                    <input type="number" id="rate-usd" class="text-2xl font-extrabold w-full bg-transparent focus:outline-none focus:ring-1 focus:ring-emerald-500 rounded px-1" value="1520" step="0.01" oninput="calculate()">
+                </div>
+                <div class="text-[11px] text-slate-400 mt-1 flex items-center justify-between">
+                    <span id="time-usd">Cargando...</span>
+                    <button onclick="editRate('usd')" class="underline hover:text-emerald-500">Editar</button>
+                </div>
+            </div>
+
+            <!-- BRL Rate Card -->
+            <div id="card-brl" class="bg-white dark:bg-slate-800 p-4 rounded-2xl border-2 border-slate-200 dark:border-slate-700 shadow-sm relative transition-all">
+                <div class="flex justify-between items-start mb-1">
+                    <div class="flex items-center gap-1">
+                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Real (BRL)</span>
+                        <span class="text-[9px] text-slate-400 font-normal">(×1 u)</span>
+                    </div>
+                    <select id="type-brl" onchange="calculate()" class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 font-semibold focus:outline-none cursor-pointer">
+                        <option value="compra">Compra (Recomendado)</option>
+                        <option value="venta">Venta</option>
+                    </select>
+                </div>
+                <div class="flex items-baseline gap-1">
+                    <span class="text-xs text-slate-500 dark:text-slate-400">$</span>
+                    <input type="number" id="rate-brl" class="text-2xl font-extrabold w-full bg-transparent focus:outline-none focus:ring-1 focus:ring-emerald-500 rounded px-1" value="263" step="0.01" oninput="calculate()">
+                </div>
+                <div class="text-[11px] text-slate-400 mt-1 flex items-center justify-between">
+                    <span id="time-brl">BNA ÷ 100</span>
+                    <button onclick="editRate('brl')" class="underline hover:text-emerald-500">Editar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Calculator Layout -->
+        <div class="grid md:grid-cols-12 gap-6">
+
+            <!-- Form Panel -->
+            <div class="md:col-span-7 bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col justify-between">
+                <div>
+                    <!-- Step 1: Select Currency -->
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">1. Seleccionar Divisa de Pago</label>
+                    <div class="grid grid-cols-2 gap-3 mb-6">
+                        <button type="button" id="btn-currency-usd" onclick="setCurrency('usd')" class="py-3 px-4 rounded-2xl border-2 border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 font-bold flex items-center justify-center gap-2 transition-all">
+                            <span>🇺🇸</span> Dólares (USD)
+                        </button>
+                        <button type="button" id="btn-currency-brl" onclick="setCurrency('brl')" class="py-3 px-4 rounded-2xl border-2 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 font-bold flex items-center justify-center gap-2 transition-all">
+                            <span>🇧🇷</span> Reales (BRL)
+                        </button>
+                    </div>
+
+                    <!-- Step 2: Total in ARS -->
+                    <div class="mb-6">
+                        <div class="flex justify-between items-center mb-1.5">
+                            <label for="input-ars" class="text-xs font-bold uppercase tracking-wider text-slate-400">2. Monto Total en Pesos ($ ARS)</label>
+                            <button onclick="clearAll()" class="text-xs text-rose-500 hover:underline font-semibold flex items-center gap-1">
+                                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Limpiar
+                            </button>
+                        </div>
+                        <div class="relative">
+                            <span class="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-bold text-slate-400">$</span>
+                            <input type="number" id="input-ars" placeholder="0" class="w-full text-3xl font-extrabold pl-10 pr-4 py-3.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-2xl focus:ring-2 focus:ring-emerald-500 focus:outline-none transition-all" oninput="calculate()">
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Foreign Paid Amount -->
+                    <div class="mb-4">
+                        <label id="label-foreign-paid" for="input-foreign" class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">3. Cliente Paga Con (USD)</label>
+                        <div class="relative">
+                            <span id="symbol-foreign" class="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-bold text-slate-400">u$s</span>
+                            <input type="number" id="input-foreign" placeholder="0" class="w-full text-3xl font-extrabold pl-16 pr-4 py-3.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-2xl focus:ring-2 focus:ring-emerald-500 focus:outline-none transition-all" oninput="calculate()">
+                        </div>
+                    </div>
+
+                    <!-- Quick Preset Buttons -->
+                    <div class="mb-4">
+                        <span class="text-[11px] font-semibold text-slate-400 block mb-2">Acceso Rápido billetes recibidos:</span>
+                        <div id="quick-buttons" class="flex flex-wrap gap-2">
+                            <!-- Populated dynamically based on currency -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer Hint -->
+                <div class="pt-4 border-t border-slate-100 dark:border-slate-700/50 text-xs text-slate-400 flex justify-between items-center">
+                    <span>💡 Tip: Usa <kbd class="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-700 rounded font-mono">Tab</kbd> para moverte rápido.</span>
+                </div>
+            </div>
+
+            <!-- Output Panel -->
+            <div class="md:col-span-5 bg-slate-900 text-white p-6 rounded-3xl shadow-xl flex flex-col justify-between border border-slate-800">
+                <div>
+                    <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4 flex items-center gap-2">
+                        <i data-lucide="receipt" class="w-4 h-4 text-emerald-400"></i> Resumen de Cuenta
+                    </h2>
+
+                    <!-- Total converted to foreign -->
+                    <div class="bg-slate-800/60 p-4 rounded-2xl mb-4 border border-slate-700/50">
+                        <span class="text-xs text-slate-400 block mb-1">Total a cobrar en <span id="summary-currency-name">Dólares</span>:</span>
+                        <div class="flex items-baseline justify-between">
+                            <span id="out-equiv-foreign" class="text-3xl font-black text-emerald-400">0.00</span>
+                            <span id="out-equiv-symbol" class="text-lg font-bold text-slate-400">USD</span>
+                        </div>
+                        <span id="out-equiv-rate-detail" class="text-[11px] text-slate-400 block mt-1">Cotización aplicable: $0.00</span>
+                    </div>
+
+                    <!-- Change Section -->
+                    <div id="change-container" class="space-y-4">
+                        
+                        <!-- Main Change (Foreign Currency) -->
+                        <div class="p-4 rounded-2xl bg-emerald-950/40 border border-emerald-500/30">
+                            <span class="text-xs font-bold uppercase tracking-wider text-emerald-400 block mb-1">Vuelto en <span id="change-currency-name">Dólares</span></span>
+                            <div class="flex items-baseline justify-between">
+                                <span id="out-change-foreign" class="text-4xl font-extrabold text-white">0.00</span>
+                                <span id="out-change-symbol" class="text-xl font-bold text-emerald-400">USD</span>
+                            </div>
+                        </div>
+
+                        <!-- Secondary Change (Equivalent ARS) -->
+                        <div class="p-4 rounded-2xl bg-slate-800/40 border border-slate-700/50">
+                            <span class="text-xs text-slate-400 block mb-1">O Vuelto equivalente en Pesos</span>
+                            <div class="flex items-baseline justify-between">
+                                <span id="out-change-ars" class="text-3xl font-bold text-slate-200">$0.00</span>
+                                <span class="text-sm font-semibold text-slate-400">ARS</span>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- Insufficient Funds Warning -->
+                    <div id="warning-insufficient" class="hidden p-4 rounded-2xl bg-rose-950/40 border border-rose-500/30 text-rose-300 mt-4">
+                        <div class="flex items-center gap-2 font-bold text-sm">
+                            <i data-lucide="alert-circle" class="w-5 h-5 text-rose-400"></i> Monto insuficiente
+                        </div>
+                        <p class="text-xs mt-1 text-rose-300/80">El pago ingresado es menor al total de la compra.</p>
+                    </div>
+
+                </div>
+
+                <!-- Print / Quick Reset action -->
+                <div class="mt-6 pt-4 border-t border-slate-800 flex gap-2">
+                    <button onclick="clearAll()" class="w-full py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-xl transition-colors flex items-center justify-center gap-2 text-sm">
+                        <i data-lucide="rotate-ccw" class="w-4 h-4"></i> Nueva Operación
+                    </button>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Banner Info -->
+        <div class="mt-6 p-4 rounded-2xl bg-slate-200/60 dark:bg-slate-800/40 border border-slate-300/50 dark:border-slate-700/50 text-xs text-slate-500 dark:text-slate-400 flex flex-col md:flex-row justify-between items-center gap-2 text-center md:text-left">
+            <span> Tomando valores del **Banco Nación (Compra)** para recepción de divisas.</span>
+            <span class="text-[11px] bg-slate-300/50 dark:bg-slate-700/50 px-2.5 py-1 rounded-lg">Respaldo manual activo ante fallos de conexión.</span>
+        </div>
+
+    </div>
+
+    <!-- Scripting Logic -->
+    <script>
+        // State Management
+        let selectedCurrency = 'usd'; // 'usd' or 'brl'
+        let fullRates = {
+            usd: { compra: 1520, venta: 1570 },
+            brl: { compra: 263, venta: 293 } // Stored in unit values (BNA value / 100)
+        };
+
+        // Quick bill presets
+        const presets = {
+            usd: [1, 5, 10, 20, 50, 100],
+            brl: [2, 5, 10, 20, 50, 100, 200]
+        };
+
+        // Initialize Lucide Icons
+        lucide.createIcons();
+
+        // Theme Toggle Functionality
+        function toggleTheme() {
+            const isDark = document.documentElement.classList.toggle('dark');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            updateThemeIcon(isDark);
+        }
+
+        function updateThemeIcon(isDark) {
+            const icon = document.getElementById('theme-icon');
+            if (isDark) {
+                icon.setAttribute('data-lucide', 'sun');
+            } else {
+                icon.setAttribute('data-lucide', 'moon');
+            }
+            lucide.createIcons();
+        }
+
+        // Init Theme
+        if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+            updateThemeIcon(true);
+        } else {
+            document.documentElement.classList.remove('dark');
+            updateThemeIcon(false);
+        }
+
+        // Fetch rates from DolarAPI
+        async function fetchRates() {
+            const syncIcon = document.getElementById('sync-icon');
+            const syncText = document.getElementById('sync-text');
+            
+            syncIcon.classList.add('animate-spin');
+            syncText.textContent = 'Cargando...';
+
+            try {
+                // Fetch USD Official (Banco Nacion)
+                const resUsd = await fetch('https://dolarapi.com/v1/dolares/oficial');
+                const dataUsd = await resUsd.json();
+
+                // Fetch BRL Cotizacion
+                const resBrl = await fetch('https://dolarapi.com/v1/cotizaciones/brl');
+                const dataBrl = await resBrl.json();
+
+                if (dataUsd && dataUsd.compra) {
+                    fullRates.usd.compra = dataUsd.compra;
+                    fullRates.usd.venta = dataUsd.venta || dataUsd.compra;
+                    document.getElementById('time-usd').textContent = 'Hoy ' + new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                }
+
+                if (dataBrl && dataBrl.compra) {
+                    // Normalize BNA rate: if API returns 26300 or > 1000, divide by 100
+                    let rawCompra = dataBrl.compra;
+                    let rawVenta = dataBrl.venta || dataBrl.compra;
+                    
+                    fullRates.brl.compra = rawCompra > 1000 ? rawCompra / 100 : rawCompra;
+                    fullRates.brl.venta = rawVenta > 1000 ? rawVenta / 100 : rawVenta;
+                    
+                    document.getElementById('time-brl').textContent = 'BNA ($' + (fullRates.brl.compra * 100).toFixed(0) + '/100u)';
+                }
+
+                updateRateInputsFromState();
+                syncText.textContent = 'Actualizado';
+            } catch (err) {
+                console.error("Error obteniendo cotizaciones:", err);
+                syncText.textContent = 'Usando valores base';
+                updateRateInputsFromState();
+            } finally {
+                syncIcon.classList.remove('animate-spin');
+                calculate();
+            }
+        }
+
+        function updateRateInputsFromState() {
+            const typeUsd = document.getElementById('type-usd').value;
+            const typeBrl = document.getElementById('type-brl').value;
+
+            document.getElementById('rate-usd').value = fullRates.usd[typeUsd];
+            document.getElementById('rate-brl').value = fullRates.brl[typeBrl];
+        }
+
+        // Select Currency Handler
+        function setCurrency(currency) {
+            selectedCurrency = currency;
+            
+            const btnUsd = document.getElementById('btn-currency-usd');
+            const btnBrl = document.getElementById('btn-currency-brl');
+
+            const cardUsd = document.getElementById('card-usd');
+            const cardBrl = document.getElementById('card-brl');
+
+            if (currency === 'usd') {
+                btnUsd.className = "py-3 px-4 rounded-2xl border-2 border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 font-bold flex items-center justify-center gap-2 transition-all shadow-sm";
+                btnBrl.className = "py-3 px-4 rounded-2xl border-2 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 font-bold flex items-center justify-center gap-2 transition-all";
+                
+                cardUsd.classList.add('border-emerald-500');
+                cardUsd.classList.remove('border-slate-200', 'dark:border-slate-700');
+                cardBrl.classList.remove('border-emerald-500');
+                cardBrl.classList.add('border-slate-200', 'dark:border-slate-700');
+
+                document.getElementById('label-foreign-paid').textContent = '3. Cliente Paga Con (USD)';
+                document.getElementById('symbol-foreign').textContent = 'u$s';
+                document.getElementById('summary-currency-name').textContent = 'Dólares';
+                document.getElementById('change-currency-name').textContent = 'Dólares';
+                document.getElementById('out-equiv-symbol').textContent = 'USD';
+                document.getElementById('out-change-symbol').textContent = 'USD';
+            } else {
+                btnBrl.className = "py-3 px-4 rounded-2xl border-2 border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 font-bold flex items-center justify-center gap-2 transition-all shadow-sm";
+                btnUsd.className = "py-3 px-4 rounded-2xl border-2 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 font-bold flex items-center justify-center gap-2 transition-all";
+
+                cardBrl.classList.add('border-emerald-500');
+                cardBrl.classList.remove('border-slate-200', 'dark:border-slate-700');
+                cardUsd.classList.remove('border-emerald-500');
+                cardUsd.classList.add('border-slate-200', 'dark:border-slate-700');
+
+                document.getElementById('label-foreign-paid').textContent = '3. Cliente Paga Con (BRL)';
+                document.getElementById('symbol-foreign').textContent = 'R$';
+                document.getElementById('summary-currency-name').textContent = 'Reales';
+                document.getElementById('change-currency-name').textContent = 'Reales';
+                document.getElementById('out-equiv-symbol').textContent = 'BRL';
+                document.getElementById('out-change-symbol').textContent = 'BRL';
+            }
+
+            renderQuickButtons();
+            calculate();
+        }
+
+        // Render Quick Buttons
+        function renderQuickButtons() {
+            const container = document.getElementById('quick-buttons');
+            container.innerHTML = '';
+            
+            const list = presets[selectedCurrency];
+            list.forEach(val => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = "px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 font-semibold text-xs transition-colors";
+                btn.textContent = `+ ${val} ${selectedCurrency.toUpperCase()}`;
+                btn.onclick = () => {
+                    const input = document.getElementById('input-foreign');
+                    const currentVal = parseFloat(input.value) || 0;
+                    input.value = currentVal + val;
+                    calculate();
+                };
+                container.appendChild(btn);
+            });
+        }
+
+        // Focus manual edit
+        function editRate(type) {
+            const input = document.getElementById(`rate-${type}`);
+            input.focus();
+            input.select();
+        }
+
+        // Main Calculation Engine
+        function calculate() {
+            // Read active inputs
+            const rateUsd = parseFloat(document.getElementById('rate-usd').value) || 0;
+            const rateBrl = parseFloat(document.getElementById('rate-brl').value) || 0;
+            const currentRate = selectedCurrency === 'usd' ? rateUsd : rateBrl;
+
+            const inputArs = parseFloat(document.getElementById('input-ars').value) || 0;
+            const inputForeign = parseFloat(document.getElementById('input-foreign').value) || 0;
+
+            // Detail Rate label
+            let rateExtraInfo = selectedCurrency === 'brl' ? ` ($${(currentRate * 100).toFixed(0)} / 100 Reales)` : '';
+            document.getElementById('out-equiv-rate-detail').textContent = `Cotización 1 ${selectedCurrency.toUpperCase()}: $${currentRate.toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}${rateExtraInfo}`;
+
+            if (currentRate <= 0) {
+                document.getElementById('out-equiv-foreign').textContent = '0.00';
+                document.getElementById('out-change-foreign').textContent = '0.00';
+                document.getElementById('out-change-ars').textContent = '$0.00';
+                return;
+            }
+
+            // Calculations
+            // Total in foreign currency
+            const equivalentForeign = inputArs / currentRate;
+            document.getElementById('out-equiv-foreign').textContent = equivalentForeign.toFixed(2);
+
+            // Change calculation
+            const changeForeign = inputForeign - equivalentForeign;
+            const changeArs = changeForeign * currentRate;
+
+            const changeContainer = document.getElementById('change-container');
+            const warningInsufficient = document.getElementById('warning-insufficient');
+
+            if (inputForeign > 0 && changeForeign < -0.01) {
+                // Insufficient money paid
+                changeContainer.classList.add('hidden');
+                warningInsufficient.classList.remove('hidden');
+            } else {
+                changeContainer.classList.remove('hidden');
+                warningInsufficient.classList.add('hidden');
+
+                if (changeForeign >= 0) {
+                    document.getElementById('out-change-foreign').textContent = changeForeign.toFixed(2);
+                    document.getElementById('out-change-ars').textContent = '$' + Math.max(0, changeArs).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                } else {
+                    document.getElementById('out-change-foreign').textContent = '0.00';
+                    document.getElementById('out-change-ars').textContent = '$0.00';
+                }
+            }
+        }
+
+        // Clear All Inputs
+        function clearAll() {
+            document.getElementById('input-ars').value = '';
+            document.getElementById('input-foreign').value = '';
+            calculate();
+            document.getElementById('input-ars').focus();
+        }
+
+        // Initialize Page
+        window.onload = function() {
+            fetchRates();
+            renderQuickButtons();
+        };
+    </script>
+</body>
+</html>
