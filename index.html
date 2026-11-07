@@ -27,7 +27,7 @@
                 </div>
                 <div>
                     <h1 class="text-xl font-bold tracking-tight">Caja Divisas</h1>
-                    <p class="text-xs text-slate-500 dark:text-slate-400">Banco Nación (Redondeo Activo)</p>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Banco Nación (Auto-actualizado)</p>
                 </div>
             </div>
 
@@ -80,13 +80,13 @@
                     <input type="number" id="rate-brl" class="text-2xl font-extrabold w-full bg-transparent focus:outline-none focus:ring-1 focus:ring-emerald-500 rounded px-1" value="263" step="0.01" oninput="calculate()">
                 </div>
                 <div class="text-[11px] text-slate-400 mt-1 flex items-center justify-between">
-                    <span id="time-brl">BNA ($263,00)</span>
+                    <span id="time-brl">Cargando...</span>
                     <button onclick="editRate('brl')" class="underline hover:text-emerald-500">Editar</button>
                 </div>
             </div>
         </div>
 
-        <!-- Main Calculator -->
+        <!-- Main Calculator Layout -->
         <div class="grid md:grid-cols-12 gap-6">
 
             <!-- Inputs Panel -->
@@ -134,7 +134,7 @@
                 </div>
 
                 <div class="pt-4 border-t border-slate-100 dark:border-slate-700/50 text-xs text-slate-400 flex justify-between items-center">
-                    <span>💡 Tip: Redondeo automático al entero más cercano activado.</span>
+                    <span>💡 Tip: Redondeo al entero más cercano activo.</span>
                 </div>
             </div>
 
@@ -145,7 +145,6 @@
                         <i data-lucide="receipt" class="w-4 h-4 text-emerald-400"></i> Resumen de Cuenta
                     </h2>
 
-                    <!-- Total converted -->
                     <div class="bg-slate-800/60 p-4 rounded-2xl mb-4 border border-slate-700/50">
                         <span class="text-xs text-slate-400 block mb-1">Total a cobrar en <span id="summary-currency-name">Dólares</span>:</span>
                         <div class="flex items-baseline justify-between">
@@ -155,9 +154,7 @@
                         <span id="out-exact-detail" class="text-[11px] text-slate-400 block mt-1">Exacto: 0.00</span>
                     </div>
 
-                    <!-- Change Section -->
                     <div id="change-container" class="space-y-4">
-                        <!-- Change in Foreign -->
                         <div class="p-4 rounded-2xl bg-emerald-950/40 border border-emerald-500/30">
                             <span class="text-xs font-bold uppercase tracking-wider text-emerald-400 block mb-1">Vuelto en <span id="change-currency-name">Dólares</span></span>
                             <div class="flex items-baseline justify-between">
@@ -166,7 +163,6 @@
                             </div>
                         </div>
 
-                        <!-- Change in ARS -->
                         <div class="p-4 rounded-2xl bg-slate-800/40 border border-slate-700/50">
                             <span class="text-xs text-slate-400 block mb-1">O Vuelto equivalente en Pesos</span>
                             <div class="flex items-baseline justify-between">
@@ -176,7 +172,6 @@
                         </div>
                     </div>
 
-                    <!-- Insufficient Funds Warning -->
                     <div id="warning-insufficient" class="hidden p-4 rounded-2xl bg-rose-950/40 border border-rose-500/30 text-rose-300 mt-4">
                         <div class="flex items-center gap-2 font-bold text-sm">
                             <i data-lucide="alert-circle" class="w-5 h-5 text-rose-400"></i> Monto insuficiente
@@ -195,7 +190,7 @@
         </div>
 
         <div class="mt-6 p-4 rounded-2xl bg-slate-200/60 dark:bg-slate-800/40 border border-slate-300/50 dark:border-slate-700/50 text-xs text-slate-500 dark:text-slate-400 flex flex-col md:flex-row justify-between items-center gap-2 text-center md:text-left">
-            <span>Tomando valores del Banco Nación (Compra) para recepción de divisas.</span>
+            <span>Conectado a APIs oficiales de Cotización (Banco Nación).</span>
             <span class="text-[11px] bg-slate-300/50 dark:bg-slate-700/50 px-2.5 py-1 rounded-lg">Respaldo manual activo ante fallos de conexión.</span>
         </div>
 
@@ -240,6 +235,7 @@
             updateThemeIcon(false);
         }
 
+        // AUTO-FETCH CON NORMALIZACIÓN INTELIGENTE PARA BNA BILLETTES
         async function fetchRates() {
             const syncIcon = document.getElementById('sync-icon');
             const syncText = document.getElementById('sync-text');
@@ -248,6 +244,7 @@
             syncText.textContent = 'Cargando...';
 
             try {
+                // Fetch Dólar Oficial
                 const resUsd = await fetch('https://dolarapi.com/v1/dolares/oficial');
                 const dataUsd = await resUsd.json();
 
@@ -257,10 +254,24 @@
                     document.getElementById('time-usd').textContent = 'Hoy ' + new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
                 }
 
-                // Fijamos BNA oficial ($263)
-                fullRates.brl.compra = 263;
-                fullRates.brl.venta = 293;
-                document.getElementById('time-brl').textContent = 'BNA Fijo ($263,00)';
+                // Fetch Real Cotización
+                const resBrl = await fetch('https://dolarapi.com/v1/cotizaciones/brl');
+                const dataBrl = await resBrl.json();
+
+                if (dataBrl && dataBrl.compra) {
+                    let rawCompra = dataBrl.compra;
+                    let rawVenta = dataBrl.venta || dataBrl.compra;
+
+                    // Si viene agrupado de a 100 (ej: 26300), dividimos por 100
+                    if (rawCompra > 1000) {
+                        rawCompra = rawCompra / 100;
+                        rawVenta = rawVenta / 100;
+                    }
+
+                    fullRates.brl.compra = rawCompra;
+                    fullRates.brl.venta = rawVenta;
+                    document.getElementById('time-brl').textContent = 'BNA Auto ($' + (rawCompra * 100).toFixed(0) + '/100u)';
+                }
 
                 updateRateInputsFromState();
                 syncText.textContent = 'Actualizado';
@@ -353,7 +364,6 @@
             input.select();
         }
 
-        // MOTOR DE CÁLCULO CON REDONDEO
         function calculate() {
             const rateUsd = parseFloat(document.getElementById('rate-usd').value) || 0;
             const rateBrl = parseFloat(document.getElementById('rate-brl').value) || 0;
@@ -369,14 +379,12 @@
                 return;
             }
 
-            // Calculo exacto y redondeo al entero superior (Math.ceil)
             const exactForeign = inputArs / currentRate;
-            const roundedForeign = Math.ceil(exactForeign); // Ej: 395.8 pasa a 396
+            const roundedForeign = Math.ceil(exactForeign);
 
             document.getElementById('out-equiv-foreign').textContent = roundedForeign;
-            document.getElementById('out-exact-detail').textContent = `Exacto: ${exactForeign.toFixed(2)} | Cotiz: $${currentRate}`;
+            document.getElementById('out-exact-detail').textContent = `Exacto: ${exactForeign.toFixed(2)} | Cotiz: $${currentRate.toFixed(2)}`;
 
-            // Calculo de Vuelto basado en el total redondeado
             const changeForeignRaw = inputForeign - roundedForeign;
             const changeArsRaw = changeForeignRaw * currentRate;
 
@@ -391,10 +399,7 @@
                 warningInsufficient.classList.add('hidden');
 
                 if (changeForeignRaw >= 0 && inputForeign > 0) {
-                    // Vuelto en Reales/Dólares entero
                     document.getElementById('out-change-foreign').textContent = Math.floor(changeForeignRaw);
-                    
-                    // Vuelto en Pesos redondeado
                     const changeArsRounded = Math.round(changeArsRaw);
                     document.getElementById('out-change-ars').textContent = '$ ' + changeArsRounded.toLocaleString('es-AR');
                 } else {
